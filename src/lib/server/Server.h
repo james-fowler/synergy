@@ -31,6 +31,8 @@
 #include "common/stdmap.h"
 #include "common/stdset.h"
 #include "common/stdvector.h"
+#include <boost/shared_ptr.hpp>
+#include <boost/any.hpp>
 
 class BaseClientProxy;
 class EventQueueTimer;
@@ -40,6 +42,15 @@ namespace synergy { class Screen; }
 class IEventQueue;
 class Thread;
 class ClientListener;
+
+// predclare class, defined in ServerPluginCommand.h, so handle can be used
+// by Server::submitPluginCommand
+class ServerPluginCommand;
+typedef boost::shared_ptr<ServerPluginCommand> ServerPluginCommandHandle;
+
+class ServerPluginFeedback;
+typedef boost::shared_ptr<ServerPluginFeedback> PluginFeedbackPtr;
+
 
 //! Synergy server
 /*!
@@ -149,6 +160,9 @@ public:
 
 	//! Store ClientListener pointer
 	void				setListener(ClientListener* p) { m_clientListener = p; }
+
+	//! move mouse on active screen
+	void				mouseMove(SInt32 x, SInt32 y);
 	
 	//@}
 	//! @name accessors
@@ -178,9 +192,17 @@ public:
 	//! Return fake drag file list
 	DragFileList		getFakeDragFileList() { return m_fakeDragFileList; }
 
+
+	PluginFeedbackPtr pluginFeedback() const { return m_pluginFeedback; }
+
+	BaseClientProxy*	activeClient() const { return m_active; }
+
 	//@}
 
 private:
+	friend class ServerPluginFeedback;
+	void				initPluginFeedback();
+
 	// get canonical name of client
 	String				getName(const BaseClientProxy*) const;
 
@@ -314,6 +336,13 @@ private:
 	void				handleFakeInputEndEvent(const Event&, void*);
 	void				handleFileChunkSendingEvent(const Event&, void*);
 	void				handleFileRecieveCompletedEvent(const Event&, void*);
+
+public:
+	// plugin access
+	void 				submitPluginCommand( const ServerPluginCommandHandle & );
+
+private:
+	void				handlePluginCommandEvent(const Event&, void*);
 
 	// event processing
 	void				onClipboardChanged(BaseClientProxy* sender,
@@ -483,4 +512,5 @@ private:
 	ClientListener*		m_clientListener;
 
 	Thread*				m_sendClipboardThread;
+	PluginFeedbackPtr 	m_pluginFeedback;
 };

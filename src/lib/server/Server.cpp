@@ -163,6 +163,18 @@ Server::Server(
 							m_inputFilter,
 							new TMethodEventJob<Server>(this,
 								&Server::handleSwitchToScreenEvent));
+#if 0
+	// initial approach - initEvent / sendEvent for plugin would not recognize 
+	// m_events->forServer().switchToScreen() event unless it was bound
+	// on m_primaryClient->getEventTarget() in addition to m_inputFilter
+	LOG((CLOG_DEBUG "set switchToScreen handler on %p",  m_inputFilter ));
+
+	m_events->adoptHandler(m_events->forServer().switchToScreen(),
+							m_primaryClient->getEventTarget(),
+							new TMethodEventJob<Server>(this,
+								&Server::handleSwitchToScreenEvent));
+	LOG((CLOG_DEBUG "set switchToScreen handler on %p",  m_primaryClient->getEventTarget() ));
+#endif
 	m_events->adoptHandler(m_events->forServer().switchInDirection(),
 							m_inputFilter,
 							new TMethodEventJob<Server>(this,
@@ -195,8 +207,17 @@ Server::Server(
 									&Server::handleFileRecieveCompletedEvent));
 	}
 
+	m_events->adoptHandler(m_events->forServer().pluginCommand(),
+							this,
+							new TMethodEventJob<Server>(this,
+								&Server::handlePluginCommandEvent));
+
+
+	initPluginFeedback();
+
 	// add connection
 	addClient(m_primaryClient);
+
 
 	// set initial configuration
 	setConfig(config);
@@ -2406,3 +2427,27 @@ Server::dragInfoReceived(UInt32 fileNum, String content)
 
 	m_screen->startDraggingFiles(m_fakeDragFileList);
 }
+
+
+void Server::mouseMove(SInt32 x, SInt32 y) {
+	// handles moving the mouse, and making sure the server side keeps track
+	//  m_active->mouseMove( x, y ) by itself appears to work if m_active
+	//  is the server's screen, but if m_active is a client it will move
+	//  the cursor initially then jump back to where it was as soon as
+	//  the user moves the real mouse again
+
+	//
+	// stop waiting to switch
+	stopSwitch();
+
+	// record new position
+	m_x       = x;
+	m_y       = y;
+	m_xDelta  = 0;
+	m_yDelta  = 0;
+	m_xDelta2 = 0;
+	m_yDelta2 = 0;
+
+	m_active->mouseMove( x, y );
+}
+

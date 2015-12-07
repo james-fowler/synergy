@@ -19,6 +19,7 @@
 
 enum EPluginType {
 	kSecureSocket,
+	kSyncRc,
 	kPluginCount
 };
 

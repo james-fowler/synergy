@@ -417,7 +417,9 @@ public:
 		m_switchInDirection(Event::kUnknown),
 		m_keyboardBroadcast(Event::kUnknown),
 		m_lockCursorToScreen(Event::kUnknown),
-		m_screenSwitched(Event::kUnknown) { }
+		m_screenSwitched(Event::kUnknown),
+		m_pluginCommand(Event::kUnknown)
+		{ }
 
 	//! @name accessors
 	//@{
@@ -483,6 +485,13 @@ public:
 	*/
 	Event::Type		screenSwitched();
 
+	//! Get plugin command type
+	/*!
+	Returns the plugin command event type.  This is sent to process a plugin command
+	in the server / main loop thread.
+	*/
+	Event::Type		pluginCommand();
+
 	//@}
 		
 private:
@@ -494,6 +503,7 @@ private:
 	Event::Type		m_keyboardBroadcast;
 	Event::Type		m_lockCursorToScreen;
 	Event::Type		m_screenSwitched;
+	Event::Type		m_pluginCommand;
 };
 
 class ServerAppEvents : public EventTypes {

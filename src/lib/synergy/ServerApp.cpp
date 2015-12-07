@@ -39,6 +39,7 @@
 #include "base/Log.h"
 #include "base/TMethodEventJob.h"
 #include "common/Version.h"
+#include "server/ServerPluginFeedback.h"
 
 #if SYSAPI_WIN32
 #include "arch/win32/ArchMiscWindows.h"
@@ -674,6 +675,10 @@ ServerApp::handleNoClients(const Event&, void*)
 void
 ServerApp::handleScreenSwitched(const Event& e, void*)
 {
+	if( m_server ) {
+		LOG((CLOG_NOTE "ServerApp::handleScreenSwitched to %s", m_server->activeClient()->getName().c_str() ));
+		m_server->pluginFeedback()->screenSwitched().invoke( m_server->activeClient()->getName() );
+	}
 }
 
 int
@@ -708,11 +713,15 @@ ServerApp::mainLoop()
 	}
 
 	// load all available plugins.
+	LOG((CLOG_INFO "loading plugins" ));
 	ARCH->plugin().load();
+
 	// pass log and arch into plugins.
+	LOG((CLOG_INFO "initializing plugins" ));
 	ARCH->plugin().init(Log::getInstance(), Arch::getInstance());
 
 	// start server, etc
+	LOG((CLOG_INFO "starting server" ));
 	appUtil().startNode();
 	
 	// init ipc client after node start, since create a new screen wipes out

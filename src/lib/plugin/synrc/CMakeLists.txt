@@ -14,16 +14,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-if (WIN32)
-	add_subdirectory(winmmjoy)
+file(GLOB headers "*.h")
+file(GLOB sources "*.cpp")
+
+if (SYNERGY_ADD_HEADERS)
+	list(APPEND sources ${headers})
 endif()
 
-if (APPLE)
-	# 10.7 should be supported, but gives is a _NXArgv linker error
-	if (OSX_TARGET_MINOR GREATER 7)
-		add_subdirectory(ns)
-	endif()
-else()
-	add_subdirectory(ns)
-	add_subdirectory(synrc)
-endif()
+include_directories(
+	../../../lib/
+	../../../..
+)
+
+add_library(synrc SHARED ${sources})
+
+add_custom_command(
+	TARGET winmmjoy 
+	POST_BUILD
+	COMMAND xcopy /Y /Q
+		..\\..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\synrc.*
+		..\\..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\plugins\\
+)
