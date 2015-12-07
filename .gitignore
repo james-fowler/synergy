@@ -18,3 +18,14 @@ src/gui/gui.pro.user*
 src/gui/.qmake.stash
 src/gui/.rnd
 src/setup/win32/synergy.suo
+src/*/CMakeFiles/
+src/**/CMakeFiles/
+src/**/Makefile
+src/**/cmake_install.cmake
+/Makefile
+/cmake_install.cmake
+/CMakeCache.txt
+/.project
+/.cproject
+/.pydevproject
+
