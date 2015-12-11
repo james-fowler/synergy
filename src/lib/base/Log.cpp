@@ -176,10 +176,19 @@ Log::print(const char* file, int line, const char* fmt, ...)
 
 		struct tm *tm;
 		char tmp[220];
-		time_t t;
+#if 1
+		timespec ts;
+		clock_gettime( CLOCK_REALTIME, &ts );
+
+		tm = localtime(&ts.tv_sec);
+		sprintf(tmp, "%04i-%02i-%02iT%02i:%02i:%02i.%09i", tm->tm_year + 1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)ts.tv_nsec);
+
+#else
 		time(&t);
 		tm = localtime(&t);
 		sprintf(tmp, "%04i-%02i-%02iT%02i:%02i:%02i", tm->tm_year + 1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+#endif
+
 
 #ifndef NDEBUG	
 		sprintf(message, "[%s] %s: %s\n\t%s,%d", tmp, g_priority[priority], buffer, file, line);
