@@ -23,6 +23,43 @@
 // IClipboard
 //
 
+#ifdef SYN_ENABLE_CLIPBOARD_DEBUGGING
+
+unsigned IClipboard::next_instance_id = 0;
+
+IClipboard::IClipboard() :
+			_instance_id( ++next_instance_id )
+{
+}
+
+IClipboard::~IClipboard() {}
+
+String IClipboard::v_getinfo( int ) {
+	return "";
+}
+
+#else
+
+IClipboard::IClipboard() {}
+IClipboard::~IClipboard() {}
+
+#endif
+
+
+bool IClipboard::empty() { return v_empty(); }
+
+void IClipboard::add(EFormat f, const String& data) { v_add( f, data); }
+
+bool IClipboard::open(Time time) const { return v_open(time); }
+
+void IClipboard::close() const { v_close(); }
+
+IClipboard::Time IClipboard::getTime() const { return v_getTime(); }
+
+bool IClipboard::has(EFormat f) const { return v_has(f); }
+
+String IClipboard::get(EFormat f) const { return v_get(f); }
+
 void
 IClipboard::unmarshall(IClipboard* clipboard, const String& data, Time time)
 {

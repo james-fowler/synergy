@@ -265,7 +265,7 @@ XWindowsClipboard::getSelection() const
 }
 
 bool
-XWindowsClipboard::empty()
+XWindowsClipboard::v_empty()
 {
 	assert(m_open);
 
@@ -298,7 +298,7 @@ XWindowsClipboard::empty()
 }
 
 void
-XWindowsClipboard::add(EFormat format, const String& data)
+XWindowsClipboard::v_add(EFormat format, const String& data)
 {
 	assert(m_open);
 	assert(m_owner);
@@ -312,7 +312,7 @@ XWindowsClipboard::add(EFormat format, const String& data)
 }
 
 bool
-XWindowsClipboard::open(Time time) const
+XWindowsClipboard::v_open(Time time) const
 {
 	if (m_open) {
 		return false;
@@ -350,7 +350,7 @@ XWindowsClipboard::open(Time time) const
 }
 
 void
-XWindowsClipboard::close() const
+XWindowsClipboard::v_close() const
 {
 	assert(m_open);
 
@@ -366,14 +366,14 @@ XWindowsClipboard::close() const
 }
 
 IClipboard::Time
-XWindowsClipboard::getTime() const
+XWindowsClipboard::v_getTime() const
 {
 	checkCache();
 	return m_timeOwned;
 }
 
 bool
-XWindowsClipboard::has(EFormat format) const
+XWindowsClipboard::v_has(EFormat format) const
 {
 	assert(m_open);
 
@@ -382,7 +382,7 @@ XWindowsClipboard::has(EFormat format) const
 }
 
 String
-XWindowsClipboard::get(EFormat format) const
+XWindowsClipboard::v_get(EFormat format) const
 {
 	assert(m_open);
 

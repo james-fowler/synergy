@@ -87,13 +87,13 @@ public:
 	Atom				getSelection() const;
 
 	// IClipboard overrides
-	virtual bool		empty();
-	virtual void		add(EFormat, const String& data);
-	virtual bool		open(Time) const;
-	virtual void		close() const;
-	virtual Time		getTime() const;
-	virtual bool		has(EFormat) const;
-	virtual String		get(EFormat) const;
+	virtual bool		v_empty();
+	virtual void		v_add(EFormat, const String& data);
+	virtual bool		v_open(Time) const;
+	virtual void		v_close() const;
+	virtual Time		v_getTime() const;
+	virtual bool		v_has(EFormat) const;
+	virtual String		v_get(EFormat) const;
 
 private:
 	// remove all converters from our list

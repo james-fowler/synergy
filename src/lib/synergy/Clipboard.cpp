@@ -22,10 +22,12 @@
 // Clipboard
 //
 
+
 Clipboard::Clipboard() :
 	m_open(false),
 	m_owner(false)
 {
+
 	open(0);
 	empty();
 	close();
@@ -37,7 +39,7 @@ Clipboard::~Clipboard()
 }
 
 bool
-Clipboard::empty()
+Clipboard::v_empty()
 {
 	assert(m_open);
 
@@ -57,7 +59,7 @@ Clipboard::empty()
 }
 
 void
-Clipboard::add(EFormat format, const String& data)
+Clipboard::v_add(EFormat format, const String& data)
 {
 	assert(m_open);
 	assert(m_owner);
@@ -67,7 +69,7 @@ Clipboard::add(EFormat format, const String& data)
 }
 
 bool
-Clipboard::open(Time time) const
+Clipboard::v_open(Time time) const
 {
 	assert(!m_open);
 
@@ -78,7 +80,7 @@ Clipboard::open(Time time) const
 }
 
 void
-Clipboard::close() const
+Clipboard::v_close() const
 {
 	assert(m_open);
 
@@ -86,20 +88,20 @@ Clipboard::close() const
 }
 
 Clipboard::Time
-Clipboard::getTime() const
+Clipboard::v_getTime() const
 {
 	return m_timeOwned;
 }
 
 bool
-Clipboard::has(EFormat format) const
+Clipboard::v_has(EFormat format) const
 {
 	assert(m_open);
 	return m_added[format];
 }
 
 String
-Clipboard::get(EFormat format) const
+Clipboard::v_get(EFormat format) const
 {
 	assert(m_open);
 	return m_data[format];
