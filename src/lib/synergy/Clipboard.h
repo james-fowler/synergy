@@ -60,6 +60,7 @@ public:
 	virtual Time		v_getTime() const;
 	virtual bool		v_has(EFormat) const;
 	virtual String		v_get(EFormat) const;
+	virtual void 		v_dump_internals( IClipboardDumper & ) const;
 
 private:
 	mutable bool		m_open;

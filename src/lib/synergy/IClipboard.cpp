@@ -18,6 +18,13 @@
 
 #include "synergy/IClipboard.h"
 #include "common/stdvector.h"
+#include "synergy/IClipboardAccess.h"
+#include "base/Log.h"
+
+#include "mt/Mutex.h"
+#include "mt/Lock.h"
+#include <typeinfo>
+#include <iostream>
 
 //
 // IClipboard
@@ -25,25 +32,124 @@
 
 #ifdef SYN_ENABLE_CLIPBOARD_DEBUGGING
 
-unsigned IClipboard::next_instance_id = 0;
+int IClipboard::next_instance_id = 0;
+struct IClipboardTracker {
+	Mutex _add_clipboard_mutex;
+	std::vector< IClipboard *> _active_clipboards;
+};
+static IClipboardTracker * _tracker;
+static IClipboardTracker &tracker() {
+	if( _tracker == 0 ) {
+		_tracker = new IClipboardTracker();
+		_tracker->_active_clipboards.push_back(0);
+	}
+	return *_tracker;
+}
+
 
 IClipboard::IClipboard() :
-			_instance_id( ++next_instance_id )
+			_instance_id( -1 )
 {
+	Lock l(&tracker()._add_clipboard_mutex);
+
+	_instance_id = tracker()._active_clipboards.size();
+	tracker()._active_clipboards.push_back( this );
 }
 
-IClipboard::~IClipboard() {}
-
-String IClipboard::v_getinfo( int ) {
-	return "";
+IClipboard::~IClipboard() {
+	if( _instance_id >= 0 ) {
+		if( tracker()._active_clipboards[_instance_id] == this ) {
+			tracker()._active_clipboards[_instance_id] = 0;
+		}
+		_instance_id = -_instance_id;
+	}
 }
+
+void IClipboardAccess::dump_clipboards() {
+	LOG((CLOG_NOTE "dumping clipboards : %d active", (int) tracker()._active_clipboards.size() ));
+
+	for( size_t i = 0; i < tracker()._active_clipboards.size(); i++ ) {
+		IClipboard *cp = tracker()._active_clipboards[i];
+		if( cp ) {
+			//std::cout << " " << i << " : " << typeid(*cp).name() << " : ";
+			IClipboardDumper d;
+			cp->v_dump_internals( d );
+			std::string info = d._out.str();
+			LOG((CLOG_NOTE " %d (%s) : %s ", (int)i, (const char *)(typeid(*cp).name()), info.c_str() ) );
+		}
+	}
+};
+
 
 #else
 
 IClipboard::IClipboard() {}
 IClipboard::~IClipboard() {}
+void IClipboardAccess::dump_clipboards() {
+	std::cerr << "dump_clipboards() : synergy not built with SYN_ENABLE_CLIPBOARD_DEBUGGING set" << std::endl;
+};
 
 #endif
+
+static const char *format_desc( IClipboard::EFormat f ) {
+	switch( f ) {
+	case IClipboard::kText: return "Text";
+	case IClipboard::kBitmap: return "Bitmap";
+	case IClipboard::kHTML: return "HTML";
+	}
+	return "???";
+};
+
+IClipboardDumper &IClipboardDumper::wclipcontents( const t_m_added &added, const t_m_data &data ) {
+	out() << " {";
+	for( int x=0;x < IClipboard::kNumFormats; x++ ) {
+		wclipdata( (IClipboard::EFormat)(x), data[x], added[x] );
+	}
+	out() << "}";
+}
+
+IClipboardDumper &IClipboardDumper::wclipdata( IClipboard::EFormat f, const String &data, bool added ) {
+	if( added ) {
+		out() << "{" << format_desc(f);
+		if( f != IClipboard::kBitmap ) {
+			out() << ":";
+			wrepr( data, 20 );
+		}
+		out() << "},";
+	}
+	return *this;
+}
+
+IClipboardDumper &IClipboardDumper::wrepr( const std::string &str, size_t max ) {
+
+	size_t last = str.size();
+	if( !max ) {
+		max = last;
+	} else {
+		if( max < last ) last = max;
+	}
+	out() << "\"";
+	for( size_t i = 0; i < last; i++ ) {
+		char c = str[i];
+		if( c >= 32 ) {
+			switch(c) {
+			case '\\': out() << "\\\\"; break;
+			case '"': out() << "\\\""; break;
+			default: out() << c;
+			}
+		} else {
+			switch(c) {
+			case '\n': out() << "\\n"; break;
+			case '\t': out() << "\\t"; break;
+			case '\r': out() << "\\r"; break;
+			default: out() << "\\x" << std::setw(2) << std::hex << (unsigned) c;
+			}
+		}
+	}
+	if( str.size() > last ) out() << "...";
+	out() << "\"";
+	return *this;
+}
 
 
 bool IClipboard::empty() { return v_empty(); }

@@ -17,6 +17,7 @@
  */
 
 #include "synergy/Clipboard.h"
+#include "synergy/IClipboardAccess.h"
 
 //
 // Clipboard
@@ -105,6 +106,13 @@ Clipboard::v_get(EFormat format) const
 {
 	assert(m_open);
 	return m_data[format];
+}
+
+void Clipboard::v_dump_internals( IClipboardDumper &d ) const {
+
+	d.wattr( "open", m_open ).wattr("time",m_time).wattr("owner", m_owner);
+	d.wattr( "timeOwned", m_timeOwned );
+	d.wclipcontents( m_added, m_data );
 }
 
 void

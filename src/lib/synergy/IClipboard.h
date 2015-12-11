@@ -24,6 +24,9 @@
 
 #define SYN_ENABLE_CLIPBOARD_DEBUGGING
 
+
+class IClipboardDumper;
+
 //! Clipboard interface
 /*!
 This interface defines the methods common to all clipboards.
@@ -139,6 +142,9 @@ public:
 	String				get(EFormat) const;
 	virtual String		v_get(EFormat) const = 0;
 
+
+	virtual void v_dump_internals( IClipboardDumper & ) const = 0;
+
 	//! Marshall clipboard data
 	/*!
 	Merge \p clipboard's data into a single buffer that can be later
@@ -181,10 +187,10 @@ private:
 
 #ifdef SYN_ENABLE_CLIPBOARD_DEBUGGING
 	friend class IClipboardAccess;
-	static unsigned next_instance_id;
-	unsigned _instance_id;
+	friend class IClipboardDumper;
+	static int next_instance_id;
+	int _instance_id;
 public:
-	String v_getinfo( int );
 
 #endif
 };

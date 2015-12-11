@@ -14,6 +14,7 @@
 #include "server/ServerPluginFeedback.h"
 #include "synergy/ServerApp.h"
 #include "synergy/ServerArgs.h"
+#include "synergy/IClipboardAccess.h"
 
 #include "common/PluginVersion.h"
 #include <stdlib.h>
@@ -119,15 +120,10 @@ public:
 		assert( m_pluginFeedback.get() != 0 );
 		LOG((CLOG_NOTE "m_pluginFeedback = %p", (void*)m_pluginFeedback.get() ));
 
-		my_thread = new Thread( this );
+
 
 		input_pipe.open( pipe_name );
-
-		// m_switched_callback = SPFC_String::CallbackEntry( boost::bind(&SynRcJob::handle_screen_switched, this, _1 ));
-
-		// m_switched_callback_ptr = SPFC_StringCbPtr( new boost::function< void (const std::string &)> ( boost::bind( &SynRcJob::handle_screen_switched, this ) ) );
-		//boost::function< void (const std::string &)> f( boost::bind( &SynRcJob::handle_screen_switched, this, _1 ) );
-		//m_switched_callback_ptr = m_pluginFeedback->screenSwitched().add( f );
+		my_thread = new Thread( this );
 		m_switched_callback = m_pluginFeedback->screenSwitched().add( &SynRcJob::handle_screen_switched, this );
 
 	}
@@ -139,26 +135,6 @@ public:
 			output_pipe.write( "switchedToScreen " + screen + "\n" );
 		}
 	}
-
-	#if 0
-	void sendSwitchScreen( const std::string &screen ) {
-
-		IEventQueue *q= App::instance().getEvents();
-		Event::Type s2s_type = q->forServer().switchToScreen();
-		const char *s2s_name = q->getTypeName(s2s_type );
-
-
-		LOG((CLOG_NOTE "switching to screen : %s %s", s2s_name,  screen.c_str() ));
-
-		//sendEvent( s2s_name, info );
-		Server::SwitchToScreenInfo* info = Server::SwitchToScreenInfo::alloc(screen);
-		ServerApp& sapp = ServerApp::instance();
-		q->addEvent( Event(s2s_type,
-				sapp.args().m_config->getInputFilter(), // event.getTarget(),
-							info, Event::kDeliverImmediately));
-	}
-#endif
-
 
 	//! Run the job
 	virtual void		run() {
@@ -188,7 +164,7 @@ public:
 			LOG((CLOG_DEBUG "creating ServerPluginCommand" ));
 
 			ServerPluginCommandHandle cmd = ServerPluginCommand::create( tokens );
-			LOG((CLOG_DEBUG "submitting ServerPluginCommand" ));
+			LOG((CLOG_INFO "submitting ServerPluginCommand" ));
 			ServerApp::instance().getServerPtr()->submitPluginCommand( cmd );
 			// write_pipe_line( "unknown command : " + command );
 		}

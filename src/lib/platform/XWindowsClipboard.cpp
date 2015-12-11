@@ -33,6 +33,8 @@
 #include <cstdio>
 #include <X11/Xatom.h>
 
+#include "synergy/IClipboardAccess.h"
+
 //
 // XWindowsClipboard
 //
@@ -390,6 +392,32 @@ XWindowsClipboard::v_get(EFormat format) const
 	return m_data[format];
 }
 
+
+void XWindowsClipboard::v_dump_internals( IClipboardDumper &d ) const {
+
+#define WATTR( tag ) wattr( #tag, m_##tag )
+
+	//Window			m_requestor;
+
+	d.WATTR( time ).WATTR( id ).WATTR( selection ).WATTR( open ).WATTR( time ).WATTR( owner ).WATTR( timeOwned ).WATTR( timeLost );
+	d.WATTR( motif ).WATTR( checkCache ).WATTR( cached ).WATTR( cacheTime );
+	d.wattr( "replies", m_replies.size() );
+	d.wattr( "eventMasks", m_eventMasks.size() );
+	d.wclipcontents( m_added, m_data );
+
+	// m_replies
+
+#if 0
+	WATTR( property );
+	WATTR( incr );
+	WATTR( failed );
+	WATTR( done );
+
+	WATTR( atomNone );
+	WATTR( atomIncr );
+#endif
+}
+
 void
 XWindowsClipboard::clearConverters()
 {
@@ -508,7 +536,7 @@ XWindowsClipboard::icccmFillCache()
 	const Atom atomTargets = m_atomTargets;
 	Atom target;
 	String data;
-	if (!icccmGetSelection(atomTargets, &target, &data) ||
+	if (!icccmGetSelection(atomTargets, target, data) ||
 		(target != m_atomAtom && target != m_atomTargets)) {
 		LOG((CLOG_DEBUG1 "selection doesn't support TARGETS"));
 		data = "";
@@ -552,7 +580,7 @@ XWindowsClipboard::icccmFillCache()
 		// get the data
 		Atom actualTarget;
 		String targetData;
-		if (!icccmGetSelection(target, &actualTarget, &targetData)) {
+		if (!icccmGetSelection(target, actualTarget, targetData)) {
 			LOG((CLOG_DEBUG1 "  no data for target %s", XWindowsUtil::atomToString(m_display, target).c_str()));
 			continue;
 		}
@@ -567,10 +595,10 @@ XWindowsClipboard::icccmFillCache()
 
 bool
 XWindowsClipboard::icccmGetSelection(Atom target,
-				Atom* actualTarget, String* data) const
+				Atom & actualTarget, String & data) const
 {
-	assert(actualTarget != NULL);
-	assert(data         != NULL);
+	//assert(actualTarget != NULL);
+	//assert(data         != NULL);
 
 	// request data conversion
 	CICCCMGetClipboard getter(m_window, m_time, m_atomData);
@@ -580,7 +608,7 @@ XWindowsClipboard::icccmGetSelection(Atom target,
 		LOGC(getter.m_error, (CLOG_WARN "ICCCM violation by clipboard owner"));
 		return false;
 	}
-	else if (*actualTarget == None) {
+	else if (actualTarget == None) {
 		LOG((CLOG_DEBUG1 "selection conversion failed for target %s", XWindowsUtil::atomToString(m_display, target).c_str()));
 		return false;
 	}
@@ -592,7 +620,7 @@ XWindowsClipboard::icccmGetTime() const
 {
 	Atom actualTarget;
 	String data;
-	if (icccmGetSelection(m_atomTimestamp, &actualTarget, &data) &&
+	if (icccmGetSelection(m_atomTimestamp, actualTarget, data) &&
 		actualTarget == m_atomInteger) {
 		Time time = *reinterpret_cast<const Time*>(data.data());
 		LOG((CLOG_DEBUG1 "got ICCCM time %d", time));
@@ -790,7 +818,7 @@ XWindowsClipboard::motifFillCache()
 		// get the data (finally)
 		Atom actualTarget;
 		String targetData;
-		if (!motifGetSelection(motifFormat, &actualTarget, &targetData)) {
+		if (!motifGetSelection(motifFormat, actualTarget, targetData)) {
 			LOG((CLOG_DEBUG1 "  no data for target %s", XWindowsUtil::atomToString(m_display, target).c_str()));
 			continue;
 		}
@@ -805,7 +833,7 @@ XWindowsClipboard::motifFillCache()
 
 bool
 XWindowsClipboard::motifGetSelection(const MotifClipFormat* format,
-							Atom* actualTarget, String* data) const
+							Atom &actualTarget, String&data) const
 {
 	// if the current clipboard owner and the owner indicated by the
 	// motif clip header are the same then transfer via a property on
@@ -824,8 +852,8 @@ XWindowsClipboard::motifGetSelection(const MotifClipFormat* format,
    	Atom target = XInternAtom(m_display, name, False);
 	Window root = RootWindow(m_display, DefaultScreen(m_display));
 	return XWindowsUtil::getWindowProperty(m_display, root,
-								target, data,
-								actualTarget, NULL, False);
+								target, &data,
+								&actualTarget, NULL, False);
 }
 
 IClipboard::Time
@@ -1262,8 +1290,8 @@ XWindowsClipboard::CICCCMGetClipboard::CICCCMGetClipboard(
 	m_failed(false),
 	m_done(false),
 	m_reading(false),
-	m_data(NULL),
-	m_actualTarget(NULL),
+	//m_data(NULL),
+	//m_actualTarget(NULL),
 	m_error(false)
 {
 	// do nothing
@@ -1276,19 +1304,20 @@ XWindowsClipboard::CICCCMGetClipboard::~CICCCMGetClipboard()
 
 bool
 XWindowsClipboard::CICCCMGetClipboard::readClipboard(Display* display,
-				Atom selection, Atom target, Atom* actualTarget, String* data)
+				Atom selection, Atom target, Atom & actualTarget, String & data)
 {
-	assert(actualTarget != NULL);
-	assert(data         != NULL);
+	//assert(actualTarget != NULL);
+	//assert(data         != NULL);
 
 	LOG((CLOG_DEBUG1 "request selection=%s, target=%s, window=%x", XWindowsUtil::atomToString(display, selection).c_str(), XWindowsUtil::atomToString(display, target).c_str(), m_requestor));
 
 	m_atomNone = XInternAtom(display, "NONE", False);
 	m_atomIncr = XInternAtom(display, "INCR", False);
 
-	// save output pointers
-	m_actualTarget = actualTarget;
-	m_data         = data;
+
+	// TODO : cleanup - convert use of m_actualTarget/m_data to &actualTarget/data
+	Atom * const m_actualTarget = &actualTarget;
+	String * const m_data         = &data;
 
 	// assume failure
 	*m_actualTarget = None;
@@ -1331,7 +1360,7 @@ XWindowsClipboard::CICCCMGetClipboard::readClipboard(Display* display,
 		if (noWait || XPending(display) > 0) {
 			while (!m_done && !m_failed && (noWait || XPending(display) > 0)) {
 				XNextEvent(display, &xevent);
-				if (!processEvent(display, &xevent)) {
+				if (!processEvent(display, &xevent, actualTarget, data)) {
 					// not processed so save it
 					events.push_back(xevent);
 				}
@@ -1367,8 +1396,11 @@ XWindowsClipboard::CICCCMGetClipboard::readClipboard(Display* display,
 
 bool
 XWindowsClipboard::CICCCMGetClipboard::processEvent(
-				Display* display, XEvent* xevent)
+				Display* display, XEvent* xevent, Atom &actualTarget, String &data)
 {
+	String *m_data = &data;
+	Atom *m_actualTarget = &actualTarget;
+
 	// process event
 	switch (xevent->type) {
 	case DestroyNotify:

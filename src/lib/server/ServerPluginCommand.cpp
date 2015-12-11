@@ -11,6 +11,7 @@
 #include "server/ServerPluginCommand.h"
 #include "server/ServerPluginFeedback.h"
 #include "server/ClientProxy.h"
+#include "synergy/IClipboardAccess.h"
 
 #include <cstring>
 #include <cstdlib>
@@ -59,8 +60,10 @@ void Server::handlePluginCommandEvent(const Event&e, void*) {
 
 	SPDB_LOG1( "handlePluginCommandEvent  cmd_wrapper at %p", cmd_wrapper );
 
+
 	ServerPluginCommand &i ( *(cmd_wrapper->impl()) );
 
+	LOG((CLOG_NOTE "Server::handlePluginCommandEvent %s", i.m_cmd.c_str() ));
 	try {
 		if( i.m_cmd == "switchToScreen" ) {
 			SPC_ENSUREM( i.m_args.size() == 1, "wrong argument count" );
@@ -79,6 +82,12 @@ void Server::handlePluginCommandEvent(const Event&e, void*) {
 
 			mouseMove( x, y );
 
+			return;
+		}
+
+		if( i.m_cmd == "dump_clipboards" ) {
+			LOG((CLOG_NOTE "dumping clipboards"));
+			IClipboardAccess::dump_clipboards();
 			return;
 		}
 		i.fail( "unknown command : " + i.m_cmd );
