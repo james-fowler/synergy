@@ -43,6 +43,18 @@ Event::Event(Type type, void* target, void* data, Flags flags) :
 	// do nothing
 }
 
+Event::Event(Type type, void* target, EventData* data, Flags flags) :
+	m_type(type),
+	m_target(target),
+	m_data(nullptr),
+	m_flags(flags),
+	m_dataObject(nullptr)
+{
+
+	setDataObject(data);
+}
+
+
 Event::Type
 Event::getType() const
 {
@@ -85,8 +97,15 @@ Event::deleteData(const Event& event)
 
 	default:
 		if ((event.getFlags() & kDontFreeData) == 0) {
-			free(event.getData());
-			delete event.getDataObject();
+			void *raw_data = event.getData();
+			EventData *complex_data = event.getDataObject();
+
+			if( raw_data && raw_data != complex_data ) {
+				free( raw_data );
+			}
+			if( complex_data ) {
+				delete complex_data;
+			}
 		}
 		break;
 	}

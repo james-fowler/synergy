@@ -63,6 +63,8 @@ public:
 	Event(Type type, void* target = NULL, void* data = NULL,
 							 Flags flags = kNone);
 
+	Event(Type type, void* target, EventData* data,
+							 Flags flags = kNone);
 	//! @name manipulators
 	//@{
 

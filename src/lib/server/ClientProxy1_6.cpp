@@ -66,7 +66,7 @@ ClientProxy1_6::setClipboard(ClipboardID id, const IClipboard* clipboard)
 void
 ClientProxy1_6::handleClipboardSendingEvent(const Event& event, void*)
 {
-	ClipboardChunk::send(getStream(), event.getData());
+	ClipboardChunk::send(getStream(), event.getDataObject());
 }
 
 bool
