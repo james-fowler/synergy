@@ -19,9 +19,9 @@
 #include "ui_PluginWizardPageBase.h"
 
 #include "SslCertificate.h"
+#include "WebClient.h"
 #include "PluginManager.h"
 #include "MainWindow.h"
-#include "EditionType.h"
 
 #include <QMovie>
 #include <QThread>
@@ -30,7 +30,8 @@
 PluginWizardPage::PluginWizardPage(MainWindow& mainWindow, QWidget *parent) :
 	QWizardPage(parent),
 	m_Finished(false),
-	m_Edition(Unknown),
+	m_pWebClient(NULL),
+	m_pPluginManager(NULL),
 	m_pSslCertificate(NULL),
 	m_mainWindow(mainWindow)
 {
@@ -45,6 +46,14 @@ PluginWizardPage::PluginWizardPage(MainWindow& mainWindow, QWidget *parent) :
 
 PluginWizardPage::~PluginWizardPage()
 {
+	if (m_pWebClient != NULL) {
+		delete m_pWebClient;
+	}
+
+	if (m_pPluginManager != NULL) {
+		delete m_pPluginManager;
+	}
+
 	delete m_pSslCertificate;
 }
 
@@ -60,96 +69,42 @@ void PluginWizardPage::changeEvent(QEvent *e)
 	}
 }
 
-void PluginWizardPage::initializePage()
+void PluginWizardPage::showError(QString error)
 {
-	QWizardPage::initializePage();
-
-	if (m_Edition != Pro) {
-		updateStatus(tr("Setup complete."));
-		showFinished();
-		return;
-	}
-
-	m_pLabelSpinning->show();
-
-	QThread* thread = new QThread;
-
-	connect(&m_PluginManager,
-		SIGNAL(error(QString)),
-		this,
-		SLOT(showError(QString)));
-
-	connect(&m_PluginManager,
-		SIGNAL(info(QString)),
-		this,
-		SLOT(updateStatus(QString)));
-
-	connect(&m_PluginManager,
-		SIGNAL(queryPluginDone()),
-		this,
-		SLOT(queryPluginDone()));
-
-	connect(&m_PluginManager,
-		SIGNAL(queryPluginDone()),
-		thread,
-		SLOT(quit()));
-
-	connect(&m_PluginManager,
-		SIGNAL(error(QString)),
-		thread,
-		SLOT(quit()));
-
-	connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
-
-	m_PluginManager.moveToThread(thread);
-	thread->start();
-
-	QMetaObject::invokeMethod(&m_PluginManager, "queryPluginList", Qt::QueuedConnection);
+	updateStatus(tr("Error: %1").arg(error));
+	showFinished();
 }
 
 void PluginWizardPage::queryPluginDone()
 {
-	QStringList pluginList = m_PluginManager.getPluginList();
+	QStringList pluginList = m_pWebClient->getPluginList();
 	if (pluginList.isEmpty()) {
 		updateStatus(tr("Setup complete."));
 		showFinished();
 	}
 	else {
-		m_mainWindow.stopSynergy();
-		copyPlugins();
-		m_mainWindow.startSynergy();
+		downloadPlugins();
 	}
 }
 
-void PluginWizardPage::copyPlugins()
+void PluginWizardPage::updateDownloadStatus()
 {
-	m_pThread = new QThread;
-
-	connect(&m_PluginManager,
-		SIGNAL(copyFinished()),
-		this,
-		SLOT(generateCertificate()));
-
-	connect(&m_PluginManager,
-		SIGNAL(error(QString)),
-		m_pThread,
-		SLOT(quit()));
-
-	connect(m_pThread,
-		SIGNAL(finished()),
-		m_pThread,
-		SLOT(deleteLater()));
-
+	QStringList pluginList = m_pWebClient->getPluginList();
+	int index = m_pPluginManager->downloadIndex();
 	updateStatus(
-		tr("Copying plugins..."));
+		tr("Downloading '%1' plugin (%2/%3)...")
+		.arg(pluginList.at(index + 1))
+		.arg(index + 2)
+		.arg(pluginList.size()));
+}
 
-	m_PluginManager.moveToThread(m_pThread);
-	m_pThread->start();
+void PluginWizardPage::finished()
+{
+	// TODO: we should check if ns plugin exists
+	m_mainWindow.appConfig().setCryptoEnabled(true);
 
-	QMetaObject::invokeMethod(
-		&m_PluginManager,
-		"copyPlugins",
-		Qt::QueuedConnection);
+	updateStatus(tr("Plugins installed successfully."));
+	showFinished();
 }
 
 void PluginWizardPage::generateCertificate()
@@ -172,25 +127,59 @@ void PluginWizardPage::generateCertificate()
 		Qt::QueuedConnection);
 }
 
-void PluginWizardPage::showError(QString error)
-{
-	updateStatus(tr("Error: %1").arg(error));
-	showFinished();
-}
-
-
 void PluginWizardPage::updateStatus(QString info)
 {
 	m_pLabelStatus->setText(info);
 }
 
-void PluginWizardPage::finished()
+void PluginWizardPage::downloadPlugins()
 {
-	// TODO: we should check if ns plugin exists
-	m_mainWindow.appConfig().setCryptoEnabled(true);
+	QStringList pluginList = m_pWebClient->getPluginList();
+	m_pPluginManager = new PluginManager(pluginList);
+	m_pThread = new QThread;
 
-	updateStatus(tr("Plugins installed successfully."));
-	showFinished();
+	connect(m_pPluginManager,
+		SIGNAL(error(QString)),
+		this,
+		SLOT(showError(QString)));
+
+	connect(m_pPluginManager,
+		SIGNAL(info(QString)),
+		this,
+		SLOT(updateStatus(QString)));
+
+	connect(m_pPluginManager,
+		SIGNAL(downloadNext()),
+		this,
+		SLOT(updateDownloadStatus()));
+
+	connect(m_pPluginManager,
+		SIGNAL(downloadFinished()),
+		this,
+		SLOT(generateCertificate()));
+
+	connect(m_pPluginManager,
+		SIGNAL(error(QString)),
+		m_pThread,
+		SLOT(quit()));
+
+	connect(m_pThread,
+		SIGNAL(finished()),
+		m_pThread,
+		SLOT(deleteLater()));
+
+	updateStatus(
+		tr("Downloading plugin: %1 (1/%2)")
+		.arg(pluginList.at(0))
+		.arg(pluginList.size()));
+
+	m_pPluginManager->moveToThread(m_pThread);
+	m_pThread->start();
+
+	QMetaObject::invokeMethod(
+		m_pPluginManager,
+		"downloadPlugins",
+		Qt::QueuedConnection);
 }
 
 void PluginWizardPage::showFinished()
@@ -203,4 +192,53 @@ void PluginWizardPage::showFinished()
 bool PluginWizardPage::isComplete() const
 {
 	return m_Finished;
+}
+
+void PluginWizardPage::initializePage()
+{
+	QWizardPage::initializePage();
+	if (m_pWebClient == NULL) {
+		if (m_Email.isEmpty() ||
+			m_Password.isEmpty()) {
+			updateStatus(tr("Setup complete."));
+			showFinished();
+			return;
+		}
+
+		m_pLabelSpinning->show();
+
+		m_pWebClient = new WebClient();
+		m_pWebClient->setEmail(m_Email);
+		m_pWebClient->setPassword(m_Password);
+
+		QThread* thread = new QThread;
+
+		connect(m_pWebClient,
+			SIGNAL(error(QString)),
+			this,
+			SLOT(showError(QString)));
+
+		connect(m_pWebClient,
+			SIGNAL(queryPluginDone()),
+			this,
+			SLOT(queryPluginDone()));
+
+		connect(m_pWebClient,
+			SIGNAL(queryPluginDone()),
+			thread,
+			SLOT(quit()));
+
+		connect(m_pWebClient,
+			SIGNAL(error(QString)),
+			thread,
+			SLOT(quit()));
+
+		connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+		m_pWebClient->moveToThread(thread);
+		thread->start();
+
+		updateStatus(tr("Getting plugin list..."));
+		QMetaObject::invokeMethod(m_pWebClient, "queryPluginList", Qt::QueuedConnection);
+	}
 }

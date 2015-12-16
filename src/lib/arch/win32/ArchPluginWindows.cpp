@@ -35,7 +35,6 @@ typedef void (*cleanupFunc)();
 
 void* g_eventTarget = NULL;
 IEventQueue* g_events = NULL;
-static const char * kPre174Plugin = "Pre-1.7.v";
 
 ArchPluginWindows::ArchPluginWindows()
 {

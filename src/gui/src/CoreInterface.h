@@ -26,7 +26,6 @@ public:
 
 	QString getPluginDir();
 	QString getProfileDir();
-	QString getInstalledDir();
 	QString getArch();
 	QString getSubscriptionFilename();
 	QString activateSerial(const QString& serial);

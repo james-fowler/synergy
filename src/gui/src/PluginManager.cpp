@@ -18,32 +18,41 @@
 #include "PluginManager.h"
 
 #include "CoreInterface.h"
+#include "CommandProcess.h"
 #include "DataDownloader.h"
 #include "QUtility.h"
 #include "ProcessorArch.h"
 #include "Fingerprint.h"
-#include "Plugin.h"
 #include "../lib/common/PluginVersion.h"
-
-#include <QTextStream>
 
 #include <QFile>
 #include <QDir>
 #include <QProcess>
 #include <QCoreApplication>
 
+static const char kBaseUrl[] = "http://synergy-project.org/files";
+static const char kWinPackagePlatform32[] = "Windows-x86";
+static const char kWinPackagePlatform64[] = "Windows-x64";
+static const char kMacPackagePlatform[] = "MacOSX%1-i386";
+static const char kLinuxPackagePlatformDeb32[] = "Linux-i686-deb";
+static const char kLinuxPackagePlatformDeb64[] = "Linux-x86_64-deb";
+static const char kLinuxPackagePlatformRpm32[] = "Linux-i686-rpm";
+static const char kLinuxPackagePlatformRpm64[] = "Linux-x86_64-rpm";
 
-PluginManager::PluginManager() :
-	m_PluginList()
-{
-	init();
-}
+#if defined(Q_OS_WIN)
+static const char kWinPluginExt[] = ".dll";
 
-PluginManager::~PluginManager()
-{
-}
+#elif defined(Q_OS_MAC)
+static const char kMacPluginPrefix[] = "lib";
+static const char kMacPluginExt[] = ".dylib";
+#else
+static const char kLinuxPluginPrefix[] = "lib";
+static const char kLinuxPluginExt[] = ".so";
+#endif
 
-void PluginManager::init()
+PluginManager::PluginManager(QStringList pluginList) :
+	m_PluginList(pluginList),
+	m_DownloadIndex(-1)
 {
 	m_PluginDir = m_CoreInterface.getPluginDir();
 	if (m_PluginDir.isEmpty()) {
@@ -54,18 +63,17 @@ void PluginManager::init()
 	if (m_ProfileDir.isEmpty()) {
 		emit error(tr("Failed to get profile directory."));
 	}
+}
 
-	m_InstalledDir = m_CoreInterface.getInstalledDir();
-	if (m_InstalledDir.isEmpty()) {
-		emit error(tr("Failed to get installed directory."));
-	}
+PluginManager::~PluginManager()
+{
 }
 
 bool PluginManager::exist(QString name)
 {
 	CoreInterface coreInterface;
 	QString PluginDir = coreInterface.getPluginDir();
-	QString pluginName = Plugin::getOsSpecificName(name);
+	QString pluginName = getPluginOsSpecificName(name);
 	QString filename;
 	filename.append(PluginDir);
 	filename.append(QDir::separator()).append(pluginName);
@@ -78,109 +86,160 @@ bool PluginManager::exist(QString name)
 	return exist;
 }
 
-void PluginManager::copyPlugins()
+void PluginManager::downloadPlugins()
 {
-	try {
-		// Get the Directory where plugins are put on installation
-		// If it doesn't exist, there is nothing to do
-		QString srcDirName(m_InstalledDir.append(QDir::separator())
-							.append(Plugin::getOsSpecificInstallerLocation()));
-
-		QDir srcDir(srcDirName);
-		if (!srcDir.exists()) {
-			emit info(
-				tr("No plugins found to copy from %1")
-				.arg(srcDirName));
-			emit copyFinished();
+	if (m_DataDownloader.isFinished()) {
+		if (!savePlugin()) {
+			return;
 		}
 
-		// Get the directory where Plugins are installed into Synergy
-		// If it doesn't exist make it
-		QString destDirName = m_PluginDir;
-
-		QDir destDir(destDirName);
-		if (!destDir.exists()) {
-			destDir.mkpath(".");
+		if (m_DownloadIndex != m_PluginList.size() - 1) {
+			emit downloadNext();
 		}
-		// Run through the list of plugins and copy them
-		for ( int i = 0 ; i < m_PluginList.size() ; i++ ) {
-			// Get a file entry for the plugin using the full path
-			QFile file(srcDirName + QDir::separator() + m_PluginList.at(i));
-
-			// construct the destination file name
-			QString newName(destDirName + QDir::separator() + m_PluginList.at(i));
-
-			// Check to see if the plugin already exists
-			QFile newFile(newName);
-			if(newFile.exists()) {
-				// If it does, delete it. TODO: Check to see if same and leave
-				bool result = newFile.remove();
-				if( !result ) {
-					emit error(
-							tr(	"Unable to delete plugin:\n%1\n"
-								"Please stop synergy and run the wizard again.")
-							.arg(newName));
-					return;
-				}
-			}
-			// make a copy of the plugin in the new location
-			#if defined(Q_OS_WIN)
-			bool result = file.copy(newName);
-			#else
-			bool result = file.link(newName);
-			#endif
-			if ( !result ) {
-					emit error(
-							tr("Failed to copy plugin '%1' to: %2\n%3\n"
-							   "Please stop synergy and run the wizard again.")
-							.arg(m_PluginList.at(i))
-							.arg(newName)
-							.arg(file.errorString()));
-					return;
-			}
-			else {
-				emit info(
-					tr("Copying '%1' plugin (%2/%3)...")
-					.arg(m_PluginList.at(i))
-					.arg(i+1)
-					.arg(m_PluginList.size()));
-			}
+		else {
+			emit downloadFinished();
+			return;
 		}
 	}
-	catch (std::exception& e)
-	{
-		emit error(tr(	"An error occurred while trying to copy the "
-						"plugin list. Please contact the help desk, and "
-						"provide the following details.\n\n%1").arg(e.what()));
-	}
 
-	emit copyFinished();
-	return;
+	m_DownloadIndex++;
+
+	if (m_DownloadIndex < m_PluginList.size()) {
+		QUrl url;
+		QString pluginUrl = getPluginUrl(m_PluginList.at(m_DownloadIndex));
+		if (pluginUrl.isEmpty()) {
+			return;
+		}
+		url.setUrl(pluginUrl);
+
+		connect(&m_DataDownloader, SIGNAL(isComplete()), this, SLOT(downloadPlugins()));
+
+		m_DataDownloader.download(url);
+	}
 }
 
-void PluginManager::queryPluginList()
+bool PluginManager::savePlugin()
 {
+	// create the path if not exist
+	QDir dir(m_PluginDir);
+	if (!dir.exists()) {
+		dir.mkpath(".");
+	}
+
+	QString filename = m_PluginDir;
+	QString pluginName = m_PluginList.at(m_DownloadIndex);
+	pluginName = getPluginOsSpecificName(pluginName);
+	filename.append(QDir::separator()).append(pluginName);
+
+	QFile file(filename);
+	if (!file.open(QIODevice::WriteOnly)) {
+		emit error(
+				tr("Failed to download plugin '%1' to: %2\n%3")
+				.arg(m_PluginList.at(m_DownloadIndex))
+				.arg(m_PluginDir)
+				.arg(file.errorString()));
+
+		file.close();
+		return false;
+	}
+
+	file.write(m_DataDownloader.data());
+	file.close();
+
+	return true;
+}
+
+QString PluginManager::getPluginUrl(const QString& pluginName)
+{
+	QString archName;
+
+#if defined(Q_OS_WIN)
+
 	try {
-		setDone(false);
-		QString extension = "*" + Plugin::getOsSpecificExt();
-		QStringList nameFilter(extension);
-
-		QString installDir(m_CoreInterface.getInstalledDir()
-							.append(QDir::separator())
-							.append(Plugin::getOsSpecificInstallerLocation()));
-
-		QString searchDirectory(installDir);
-		QDir directory(searchDirectory);
-		m_PluginList = directory.entryList(nameFilter);
-		setDone(true);
+		QString coreArch = m_CoreInterface.getArch();
+		if (coreArch.startsWith("x86")) {
+			archName = kWinPackagePlatform32;
+		}
+		else if (coreArch.startsWith("x64")) {
+			archName = kWinPackagePlatform64;
+		}
 	}
-	catch (std::exception& e)
-	{
-		setDone(true);
-		emit error(tr(	"An error occurred while trying to load the "
-						"plugin list. Please contact the help desk, and "
-						"provide the following details.\n\n%1").arg(e.what()));
+	catch (...) {
+		emit error(tr("Could not get Windows architecture type."));
+		return "";
 	}
-	emit queryPluginDone();
-	return;
+
+#elif defined(Q_OS_MAC)
+
+	QString macVersion = "1010";
+#if __MAC_OS_X_VERSION_MIN_REQUIRED <= 1090 // 10.9
+	macVersion = "109";
+#elif __MAC_OS_X_VERSION_MIN_REQUIRED <= 1080 // 10.8
+	macVersion = "108";
+#elif __MAC_OS_X_VERSION_MIN_REQUIRED <= 1070 // 10.7
+	emit error(tr("Plugins not supported on this Mac OS X version."));
+	return "";
+#endif
+
+	archName = QString(kMacPackagePlatform).arg(macVersion);
+
+#else
+
+	QString program("dpkg");
+	QStringList args;
+	args << "-s" << "synergy";
+
+	QProcess process;
+	process.setReadChannel(QProcess::StandardOutput);
+	process.start(program, args);
+	bool success = process.waitForStarted();
+
+	bool isDeb = (success && process.waitForFinished() & (process.exitCode() == 0));
+
+	int arch = getProcessorArch();
+	if (arch == kProcessorArchLinux32) {
+		if (isDeb) {
+			archName = kLinuxPackagePlatformDeb32;
+		}
+		else {
+			archName = kLinuxPackagePlatformRpm32;
+		}
+	}
+	else if (arch == kProcessorArchLinux64) {
+		if (isDeb) {
+			archName = kLinuxPackagePlatformDeb64;
+		}
+		else {
+			archName = kLinuxPackagePlatformRpm64;
+		}
+	}
+	else {
+		emit error(tr("Could not get Linux architecture type."));
+		return "";
+	}
+
+#endif
+
+	QString result = QString("%1/plugins/%2/%3/%4/%5")
+			.arg(kBaseUrl)
+			.arg(pluginName)
+			.arg(getExpectedPluginVersion(pluginName.toStdString().c_str()))
+			.arg(archName)
+			.arg(getPluginOsSpecificName(pluginName));
+
+	qDebug() << result;
+	return result;
+}
+
+QString PluginManager::getPluginOsSpecificName(const QString& pluginName)
+{
+	QString result = pluginName;
+#if defined(Q_OS_WIN)
+	result.append(kWinPluginExt);
+#elif defined(Q_OS_MAC)
+	result = kMacPluginPrefix + pluginName + kMacPluginExt;
+#else
+	result = kLinuxPluginPrefix + pluginName + kLinuxPluginExt;
+#endif
+	return result;
 }

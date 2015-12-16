@@ -722,8 +722,7 @@ class FileEvents : public EventTypes {
 public:
 	FileEvents() :
 		m_fileChunkSending(Event::kUnknown),
-		m_fileRecieveCompleted(Event::kUnknown),
-		m_keepAlive(Event::kUnknown) { }
+		m_fileRecieveCompleted(Event::kUnknown) { }
 
 	//! @name accessors
 	//@{
@@ -734,13 +733,9 @@ public:
 	//! Completed receiving a file
 	Event::Type		fileRecieveCompleted();
 
-	//! Send a keep alive
-	Event::Type		keepAlive();
-
 	//@}
 
 private:
 	Event::Type		m_fileChunkSending;
 	Event::Type		m_fileRecieveCompleted;
-	Event::Type		m_keepAlive;
 };

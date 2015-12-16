@@ -21,9 +21,10 @@
 #include "AppConfig.h"
 
 #include "ui_PluginWizardPageBase.h"
-#include "PluginManager.h"
 #include <QWizardPage>
 
+class WebClient;
+class PluginManager;
 class SslCertificate;
 class MainWindow;
 
@@ -36,7 +37,8 @@ public:
 	~PluginWizardPage();
 
 	void setFinished(bool b) { m_Finished = b; }
-	void setEdition(int edition) { m_Edition = edition; }
+	void setEmail(QString e) { m_Email = e; }
+	void setPassword(QString p) { m_Password = p; }
 
 	bool isComplete() const;
 	void initializePage();
@@ -48,17 +50,20 @@ protected slots:
 	void showError(QString error);
 	void updateStatus(QString info);
 	void queryPluginDone();
-	void generateCertificate();
+	void updateDownloadStatus();
 	void finished();
+	void generateCertificate();
 
 private:
-	void copyPlugins();
+	void downloadPlugins();
 	void showFinished();
 
 private:
 	bool m_Finished;
-	int m_Edition;
-	PluginManager m_PluginManager;
+	QString m_Email;
+	QString m_Password;
+	WebClient* m_pWebClient;
+	PluginManager* m_pPluginManager;
 	SslCertificate* m_pSslCertificate;
 	QThread* m_pThread;
 	MainWindow& m_mainWindow;
