@@ -269,6 +269,7 @@ Client::leave()
 	if (m_sendClipboardThread != NULL) {
 		StreamChunker::interruptClipboard();
 		m_sendClipboardThread->wait();
+		delete m_sendClipboardThread;
 		m_sendClipboardThread = NULL;
 	}
 
@@ -771,6 +772,7 @@ Client::sendClipboardThread(void*)
 		}
 	}
 
+	delete m_sendClipboardThread;
 	m_sendClipboardThread = NULL;
 }
 
