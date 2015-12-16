@@ -129,7 +129,10 @@ ClipboardChunk::send(synergy::IStream* stream, void* data)
 {
 	ClipboardChunk* clipboardData = reinterpret_cast<ClipboardChunk*>(data);
 	LOG((CLOG_DEBUG1 "sending clipboard chunk @%p", (void*)clipboardData));
-
+	if( clipboardData == 0 ) {
+		LOG((CLOG_ERR "ignoring null clipboard chunk"));
+		return;
+	}
 	assert( clipboardData != 0 );
 
 	char* chunk = clipboardData->m_chunk;
