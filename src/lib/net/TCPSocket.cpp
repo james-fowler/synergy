@@ -374,7 +374,7 @@ TCPSocket::sendConnectionFailedEvent(const char* msg)
 void
 TCPSocket::sendEvent(Event::Type type)
 {
-	m_events->addEvent(Event(type, getEventTarget(), NULL));
+	m_events->addEvent(Event(type, getEventTarget() ));
 }
 
 void

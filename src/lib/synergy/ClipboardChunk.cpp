@@ -128,8 +128,9 @@ void
 ClipboardChunk::send(synergy::IStream* stream, void* data)
 {
 	ClipboardChunk* clipboardData = reinterpret_cast<ClipboardChunk*>(data);
+	LOG((CLOG_DEBUG1 "sending clipboard chunk @%p", (void*)clipboardData));
 
-	LOG((CLOG_DEBUG1 "sending clipboard chunk"));
+	assert( clipboardData != 0 );
 
 	char* chunk = clipboardData->m_chunk;
 	ClipboardID id = chunk[0];

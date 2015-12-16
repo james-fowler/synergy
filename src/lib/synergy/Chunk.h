@@ -18,11 +18,12 @@
 #pragma once
 
 #include "common/basic_types.h"
+#include "base/Event.h"
 
-class Chunk {
+class Chunk : public EventData {
 public:
 	Chunk(size_t size);
-	~Chunk();
+	virtual ~Chunk();
 
 public:
 	size_t				m_dataSize;

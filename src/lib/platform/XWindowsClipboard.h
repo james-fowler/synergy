@@ -87,13 +87,14 @@ public:
 	Atom				getSelection() const;
 
 	// IClipboard overrides
-	virtual bool		empty();
-	virtual void		add(EFormat, const String& data);
-	virtual bool		open(Time) const;
-	virtual void		close() const;
-	virtual Time		getTime() const;
-	virtual bool		has(EFormat) const;
-	virtual String		get(EFormat) const;
+	virtual bool		v_empty();
+	virtual void		v_add(EFormat, const String& data);
+	virtual bool		v_open(Time) const;
+	virtual void		v_close() const;
+	virtual Time		v_getTime() const;
+	virtual bool		v_has(EFormat) const;
+	virtual String		v_get(EFormat) const;
+	virtual void 		v_dump_internals( IClipboardDumper & ) const;
 
 private:
 	// remove all converters from our list
@@ -146,10 +147,10 @@ private:
 		// cannot be performed (in which case *actualTarget == None).
 		bool			readClipboard(Display* display,
 							Atom selection, Atom target,
-							Atom* actualTarget, String* data);
+							Atom &actualTarget, String &data);
 
 	private:
-		bool			processEvent(Display* display, XEvent* event);
+		bool			processEvent(Display* display, XEvent* event, Atom &actualTarget, String &data);
 
 	private:
 		Window			m_requestor;
@@ -167,11 +168,11 @@ private:
 		bool			m_reading;
 
 		// the converted selection data
-		String*		m_data;
+		//String*		m_data;
 
 		// the actual type of the data.  if this is None then the
 		// selection owner cannot convert to the requested type.
-		Atom*			m_actualTarget;
+		//Atom*			m_actualTarget;
 
 	public:
 		// true iff the selection owner didn't follow ICCCM conventions
@@ -253,7 +254,7 @@ private:
 	// ICCCM interoperability methods
 	void				icccmFillCache();
 	bool				icccmGetSelection(Atom target,
-							Atom* actualTarget, String* data) const;
+							Atom & actualTarget, String & data) const;
 	Time				icccmGetTime() const;
 
 	// motif interoperability methods
@@ -262,7 +263,7 @@ private:
 	bool				motifOwnsClipboard() const;
 	void				motifFillCache();
 	bool				motifGetSelection(const MotifClipFormat*,
-							Atom* actualTarget, String* data) const;
+							Atom &actualTarget, String &data) const;
 	Time				motifGetTime() const;
 
 	// reply methods
@@ -325,6 +326,8 @@ private:
 	Atom				m_atomMotifClipHeader;
 	Atom				m_atomMotifClipAccess;
 	Atom				m_atomGDKSelection;
+
+
 };
 
 //! Clipboard format converter interface

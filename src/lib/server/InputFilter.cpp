@@ -557,13 +557,13 @@ InputFilter::KeystrokeAction::perform(const Event& event)
 		m_events->forIKeyState().keyUp();
 	
 	m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputBegin(),
-								event.getTarget(), NULL,
+								event.getTarget(), (void*)NULL,
 								Event::kDeliverImmediately));
 	m_events->addEvent(Event(type, event.getTarget(), m_keyInfo,
 								Event::kDeliverImmediately |
 								Event::kDontFreeData));
 	m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputEnd(),
-								event.getTarget(), NULL,
+								event.getTarget(), (void*)NULL,
 								Event::kDeliverImmediately));
 }
 

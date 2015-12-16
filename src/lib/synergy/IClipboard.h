@@ -22,6 +22,11 @@
 #include "base/EventTypes.h"
 #include "common/IInterface.h"
 
+#define SYN_ENABLE_CLIPBOARD_DEBUGGING
+
+
+class IClipboardDumper;
+
 //! Clipboard interface
 /*!
 This interface defines the methods common to all clipboards.
@@ -62,6 +67,9 @@ public:
 		kNumFormats		//!< The number of clipboard formats
 	};
 
+	IClipboard();
+	virtual ~IClipboard();
+
 	//! @name manipulators
 	//@{
 
@@ -72,14 +80,16 @@ public:
 	Return false if the clipboard ownership could not be taken;
 	the clipboard should not be emptied in this case.
 	*/
-	virtual bool		empty() = 0;
+	bool				empty();
+	virtual bool		v_empty() = 0;
 
 	//! Add data
 	/*!
 	Add data in the given format to the clipboard.  May only be
 	called after a successful empty().
 	*/
-	virtual void		add(EFormat, const String& data) = 0;
+	void				add(EFormat, const String& data);
+	virtual void		v_add(EFormat, const String& data) = 0;
 
 	//@}
 	//! @name accessors
@@ -94,7 +104,8 @@ public:
 	a time in the past when the open should effectively have taken
 	place.
 	*/
-	virtual bool		open(Time time) const = 0;
+	bool				open(Time time) const;
+	virtual bool		v_open(Time time) const = 0;
 
 	//! Close clipboard
 	/*!
@@ -104,20 +115,23 @@ public:
 	mean the clipboard ownership should be released (if it was
 	taken).
 	*/
-	virtual void		close() const = 0;
+	void				close() const;
+	virtual void		v_close() const = 0;
 
 	//! Get time
 	/*!
 	Return the timestamp passed to the last successful open().
 	*/
-	virtual Time		getTime() const = 0;
+	Time				getTime() const;
+	virtual Time		v_getTime() const = 0;
 
 	//! Check for data
 	/*!
 	Return true iff the clipboard contains data in the given
 	format.  Must be called between a successful open() and close().
 	*/
-	virtual bool		has(EFormat) const = 0;
+	bool				has(EFormat) const;
+	virtual bool		v_has(EFormat) const = 0;
 
 	//! Get data
 	/*!
@@ -125,7 +139,11 @@ public:
 	if there is no data in that format.  Must be called between
 	a successful open() and close().
 	*/
-	virtual String		get(EFormat) const = 0;
+	String				get(EFormat) const;
+	virtual String		v_get(EFormat) const = 0;
+
+
+	virtual void v_dump_internals( IClipboardDumper & ) const = 0;
 
 	//! Marshall clipboard data
 	/*!
@@ -166,4 +184,13 @@ public:
 private:
 	static UInt32		readUInt32(const char*);
 	static void			writeUInt32(String*, UInt32);
+
+#ifdef SYN_ENABLE_CLIPBOARD_DEBUGGING
+	friend class IClipboardAccess;
+	friend class IClipboardDumper;
+	static int next_instance_id;
+	int _instance_id;
+public:
+
+#endif
 };

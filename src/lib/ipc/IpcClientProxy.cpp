@@ -123,7 +123,7 @@ IpcClientProxy::handleData(const Event&, void*)
 		}
 
 		// don't delete with this event; the data is passed to a new event.
-		Event e(m_events->forIpcClientProxy().messageReceived(), this, NULL, Event::kDontFreeData);
+		Event e(m_events->forIpcClientProxy().messageReceived(), this, (void*)NULL, Event::kDontFreeData);
 		e.setDataObject(m);
 		m_events->addEvent(e);
 

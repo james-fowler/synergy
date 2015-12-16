@@ -17,14 +17,18 @@
 
 #include "synergy/Chunk.h"
 #include "base/String.h"
+#include "base/Log.h"
 
 Chunk::Chunk(size_t size)
 {
 	m_chunk = new char[size];
 	memset(m_chunk, 0, size);
+	LOG((CLOG_DEBUG5 "Chunk @%p allocated %d bytes @%p", (void*)this, (int)size, (void*) m_chunk ));
 }
 
 Chunk::~Chunk()
 {
+	LOG((CLOG_DEBUG5 "Chunk @%p freeing bytes @%p", (void*)this, (void*) m_chunk ));
+
 	delete[] m_chunk;
 }
