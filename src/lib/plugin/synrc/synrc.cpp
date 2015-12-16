@@ -80,6 +80,7 @@ public:
 	}
 };
 
+
 class SynRcJob : public IJob {
 public:
 
@@ -110,7 +111,7 @@ public:
 
 	int initEvent(void (*arg_sendEvent)(const char*, void*))
 	{
-		assert( sendEvent != 0 );
+		assert( arg_sendEvent != 0 );
 		sendEvent = arg_sendEvent;
 
 		m_server = ServerApp::instance().getServerPtr();
@@ -240,12 +241,14 @@ extern "C" {
 void
 init(void* log, void* arch)
 {
+	LOG((CLOG_NOTE  "SynRc init" ));
 	SynRcJob::my_job = new SynRcJob( log, arch );
 }
 
 int
 initEvent(void (*sendEvent)(const char*, void*))
 {
+	LOG((CLOG_NOTE  "SynRc initEvent" ));
 	assert( SynRcJob::my_job != 0 );
 	return SynRcJob::my_job-> initEvent( sendEvent );
 }
@@ -253,6 +256,10 @@ initEvent(void (*sendEvent)(const char*, void*))
 void*
 invoke(const char* command, void** args)
 {
+	LOG((CLOG_NOTE  "SynRc invoke \"%s\"", command ));
+	if( SynRcJob::my_job == 0 && !strcmp(command, "version") ) {
+		return (void*)getExpectedPluginVersion(s_pluginNames[kSyncRc]);
+	}
 	assert( SynRcJob::my_job != 0 );
 	return SynRcJob::my_job->invoke( command, args );
 }
