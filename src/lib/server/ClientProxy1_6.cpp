@@ -75,7 +75,7 @@ ClientProxy1_6::handleClipboardSendingEvent(const Event& event, void*)
 	// add keep alive message before we send each clipboard data
 	keepAlive();
 
-	ClipboardChunk::send(getStream(), event.getData());
+	ClipboardChunk::send(getStream(), event.getDataObject());
 }
 
 bool

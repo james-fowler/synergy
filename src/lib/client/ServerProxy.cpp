@@ -891,7 +891,7 @@ void
 ServerProxy::handleClipboardSendingEvent(const Event& event, void*)
 {
 	keepAlive();
-	ClipboardChunk::send(m_stream, event.getData());
+	ClipboardChunk::send(m_stream, event.getDataObject());
 }
 
 void ServerProxy::keepAlive()
