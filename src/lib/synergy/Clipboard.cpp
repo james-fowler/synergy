@@ -23,12 +23,10 @@
 // Clipboard
 //
 
-
 Clipboard::Clipboard() :
 	m_open(false),
 	m_owner(false)
 {
-
 	open(0);
 	empty();
 	close();

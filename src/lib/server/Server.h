@@ -89,7 +89,7 @@ public:
 	};
 
 	//! Screen connected data
-	class ScreenConnectedInfo {
+	class ScreenConnectedInfo : public EventData {
 	public:
 		ScreenConnectedInfo(String screen) : m_screen(screen) { }
 
